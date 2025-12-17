@@ -46,62 +46,140 @@ class ConverterLogic:
 
     def clean_name(self, raw_name, target_keyword):
         """清洗名字，区分自己和他人"""
+        # 去掉首尾空格
+        raw_name = raw_name.strip()
+        # 如果包含关键词，直接标记为自己
         if target_keyword in raw_name:
             return "yourName"
-        return raw_name.split(" ")[0].replace(":", "").strip()
+        # 简单处理：如果是 "Name(12345)" 这种格式，只取括号前的名字
+        # 同时去掉可能存在的冒号等符号
+        raw_name = re.split(r"[\(\<]", raw_name)[0].strip()
+        return raw_name.replace(":", "").replace("：", "")
+
+    def is_system_message(self, content):
+        """过滤系统消息"""
+        black_keywords = [
+            "撤回了一条消息", "加入了群聊", "拍了拍", 
+            "通话时长", "语音通话", "邀请你", 
+            "对方已成功接收", "当前版本不支持",
+            "均未接听"
+        ]
+        content = content.strip()
+        if not content: return True
+        # 过滤纯图片/表情/视频占位符
+        if content in ["[图片]", "[表情]", "[视频]", "[动画表情]"]: return True
+        
+        for kw in black_keywords:
+            if kw in content:
+                return True
+        return False
+
+    def smart_parse(self, lines):
+        """
+        智能解析器：兼容 QQ/微信导出格式 和 标准格式
+        """
+        parsed_msgs = []
+        
+        # 1. 时间戳特征正则 (QQ: 2023-12-12 12:12:12 | WeChat: 12:12)
+        time_pattern = re.compile(r"(\d{4}[-/]\d{2}[-/]\d{2})|(\d{1,2}:\d{2})")
+        
+        # 2. 标准格式正则: [Name]: Content
+        standard_pattern = re.compile(r"^\[(.*?)\]: (.*)$")
+
+        current_name = None
+        current_content_lines = []
+
+        def flush_msg():
+            if current_name and current_content_lines:
+                content = "\n".join(current_content_lines).strip()
+                if not self.is_system_message(content):
+                    parsed_msgs.append({
+                        "original_name": current_name,
+                        "content": content
+                    })
+
+        for line in lines:
+            line = line.strip()
+            if not line: continue
+
+            # A. 优先尝试匹配标准格式 [Name]: Msg (兼容旧数据)
+            std_match = standard_pattern.match(line)
+            if std_match:
+                flush_msg() 
+                current_name = std_match.group(1)
+                content = std_match.group(2)
+                current_content_lines = [content]
+                continue
+
+            # B. 尝试匹配 Header 行 (QQ/微信导出格式)
+            # 判定规则：行比较短 + 包含时间戳 + 不是长文本
+            is_header = False
+            if len(line) < 60 and time_pattern.search(line):
+                is_header = True
+            
+            if is_header:
+                flush_msg() # 上一条消息结束
+                # 提取名字：把时间戳和多余符号去掉
+                # 微信: "张三 12:30" -> "张三"
+                # QQ: "李四 2023/1/1 12:00:00" -> "李四"
+                temp_name = time_pattern.sub("", line).strip()
+                current_name = temp_name
+                current_content_lines = []
+            else:
+                # C. 既不是标准头，也不是新Header，归为上一条的内容
+                if current_name:
+                    current_content_lines.append(line)
+
+        flush_msg() # 存最后一条
+        return parsed_msgs
 
     def parse_log(self, file_path, target_keyword):
         if not os.path.exists(file_path):
             self.log(f"[Error] 文件不存在: {file_path}")
             return []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
-            lines = [line.rstrip() for line in f.readlines() if line.strip()]
+        # 读取所有行
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
 
-        pattern = re.compile(r"^\[(.*?)\]: (.*)$")
-        parsed_msgs = []
-        current_msg = None
-
-        for line in lines:
-            match = pattern.match(line)
-            if match:
-                if current_msg:
-                    parsed_msgs.append(current_msg)
-                
-                raw_name = match.group(1)
-                content = match.group(2)
-                simple_name = self.clean_name(raw_name, target_keyword)
-                
-                role = "gpt" if simple_name == "yourName" else "human"
-                
-                current_msg = {
-                    "role": role,
-                    "original_name": simple_name,
-                    "content": content
-                }
-            else:
-                if current_msg:
-                    current_msg["content"] += "\n" + line
+        self.log(f"    正在智能分析 {len(lines)} 行原始数据...")
         
-        if current_msg:
-            parsed_msgs.append(current_msg)
+        # === 使用新的智能解析器 ===
+        raw_objs = self.smart_parse(lines)
+        
+        self.log(f"    初步识别出 {len(raw_objs)} 条有效消息，开始格式化...")
+
+        # 后处理：转换为 role 并合并
+        merged_msgs = []
+        if not raw_objs: return []
+
+        processed_objs = []
+        for obj in raw_objs:
+            simple_name = self.clean_name(obj['original_name'], target_keyword)
+            role = "gpt" if simple_name == "yourName" else "human"
+            processed_objs.append({
+                "role": role,
+                "original_name": simple_name,
+                "content": obj['content']
+            })
 
         # 合并连续发言
-        merged_msgs = []
-        if not parsed_msgs: return []
-        
-        last_msg = parsed_msgs[0]
-        for i in range(1, len(parsed_msgs)):
-            curr = parsed_msgs[i]
+        last_msg = processed_objs[0]
+        for i in range(1, len(processed_objs)):
+            curr = processed_objs[i]
             if curr['role'] == last_msg['role']:
+                # 同一阵营合并
                 if curr['role'] == "human" and curr['original_name'] != last_msg['original_name']:
+                    # 不同的人说话（群聊），带上名字
                     last_msg['content'] += f"\n[{curr['original_name']}]: {curr['content']}"
                 else:
+                    # 同一个人或自己，直接拼内容
                     last_msg['content'] += "\n" + curr['content']
             else:
                 merged_msgs.append(last_msg)
                 last_msg = curr
         merged_msgs.append(last_msg)
+        
         return merged_msgs
 
     async def generate_thinking(self, client, sem, msg_index, all_msgs, model_name, ctx_limit, prompt_template):
