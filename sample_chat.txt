@@ -1,0 +1,24 @@
+[Friend_A]: 日本
+[Friend_A]: 日本
+[yourName]: 日本要是有的话感觉可以搞（
+[yourName]: 也是
+[yourName]: 确实也麻烦
+[Friend_A]: 确实麻烦
+[yourName]: 所以你的主板是x870e extreme wifi吗（
+[Friend_A]: 不知道
+[yourName]: 你不说具体型号那肯定很贵（（（
+[Friend_A]: 反正就是wifi
+[yourName]: 草
+[Friend_A]: 哦
+[Friend_A]: 叫什么socket
+[yourName]: socket？
+[yourName]: 插座？
+[yourName]: 还是什么
+[Friend_A]: socket5
+[Friend_A]: 870e wifi
+[Friend_A]: e-e
+[yourName]: 草
+[yourName]: 懂了
+[yourName]: 其实是amd5接口
+[yourName]: 这个吧
+
