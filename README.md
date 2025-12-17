@@ -1,3 +1,12 @@
-# chat-to-dataset
-This method converts chat history into datasets based on conversation segmentation and chunking. It solves the issues of unnatural phrasing and poor quality found in traditional programmatic splitting methods, and effectively addresses the context constraints of large AI models.
-施工中🏗️
+本程序用于将聊天记录转换为带“思维链”的微调数据。
+
+保留语境：合成连续未打断的对话，不随意丢弃他人发言。
+
+注入思考：让 AI 回顾历史对话，反推自己当时为什么那么回答（生成 <think> 标签）。
+
+修正逻辑：解决传统方法因切片太碎导致模型“学不到前因后果”的问题。
+
+使用方法，下载chat_to_dataset.py，填入apikey（推荐使用deepseek-reasoner，价格便宜一些）
+将qq或微信等其他社交媒体记录转换为sample_chat.txt，将路径填入API_KEY = ""
+
+运行程序即可生成ShareGPT格式的数据集
