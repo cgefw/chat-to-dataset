@@ -7,6 +7,6 @@
 修正逻辑：解决传统方法因切片太碎导致模型“学不到前因后果”的问题。
 
 使用方法，下载chat_to_dataset.py，填入apikey（推荐使用deepseek-reasoner，价格便宜一些）
-将qq或微信等其他社交媒体记录转换为sample_chat.txt，将路径填入API_KEY = ""
+将qq或微信等其他社交媒体记录转换为sample_chat.txt格式的数据，将路径填入API_KEY = ""
 
 运行程序即可生成ShareGPT格式的数据集
