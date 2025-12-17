@@ -6,13 +6,10 @@
 
 **修正逻辑**：解决传统方法因切片太碎导致模型“学不到前因后果”的问题。
 
-**使用方法**，下载chat_to_dataset.py，填入apikey（推荐使用deepseek-reasoner，价格便宜一些）
+**使用方法**：下载发布的exe程序，按照要求填入内容，并将聊天记录格式转为sample_chat.txt中展示的格式
 
 
-
-将qq或微信等其他社交媒体记录转换为sample_chat.txt格式的数据，将路径填入API_KEY = ""
-
-你可以将你的导出的聊天记录截取一部分，将你的聊天记录和sample_chat.txt都上传到LLM中，比如Gemini3pro（推荐），并给出以下提示词：
+你可以将你的导出的聊天记录截取一部分，将你的聊天记录和sample_chat.txt都上传到LLM中，比如Gemini3pro（推荐），并给出以下提示词：format conversion program prompt.txt
 
 运行程序即可生成ShareGPT格式的数据集
 
